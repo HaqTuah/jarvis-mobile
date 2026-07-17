@@ -17,7 +17,9 @@
         "NSFaceIDUsageDescription": "Jarvis uses Face ID to keep your personal assistant secure and private.",
         "NSMicrophoneUsageDescription": "Jarvis needs microphone access to hear your voice commands.",
         "NSSpeechRecognitionUsageDescription": "Jarvis uses speech recognition to understand your voice commands.",
-        "UIBackgroundModes": ["audio"]
+        "UIBackgroundModes": [
+          "audio"
+        ]
       },
       "config": {
         "usesNonExemptEncryption": false
@@ -35,6 +37,13 @@
     },
     "plugins": [
       "expo-router"
-    ]
+    ],
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "8ad89e49-64a9-4c4d-be65-f56f7f0e458a"
+      }
+    },
+    "owner": "mhaq"
   }
 }

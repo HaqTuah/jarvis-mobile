@@ -1,0 +1,54 @@
+name: Build IPA for SideStore
+
+on:
+  workflow_dispatch:  # Manual trigger
+  push:
+    branches: [main]
+    paths:
+      - 'app/**'
+      - 'services/**'
+      - 'app.json'
+      - 'package.json'
+      - 'eas.json'
+
+jobs:
+  build:
+    name: Build IPA
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci --legacy-peer-deps
+
+      - name: Setup Expo
+        uses: expo/expo-github-action@v8
+        with:
+          expo-version: latest
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Build IPA (for SideStore sideloading)
+        run: |
+          eas build --platform ios --profile sidestore --local \
+            --output ./jarvis.ipa \
+            --non-interactive
+        env:
+          EXPO_APPLE_ID: ${{ secrets.APPLE_ID }}
+          EXPO_APPLE_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
+          EXPO_NO_DEPLOY: 1
+
+      - name: Upload IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: jarvis-ipa
+          path: ./jarvis.ipa
+          retention-days: 30
