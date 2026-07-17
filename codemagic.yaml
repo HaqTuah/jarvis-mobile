@@ -10,15 +10,16 @@ workflows:
     environment:
       vars:
         EXPO_PUBLIC_SERVER_URL: https://jarvis-server-production-692e.up.railway.app
-      groups:
-        - app_store_credentials
+        EXPO_NO_DEPLOY: "1"
       node: 20
     scripts:
       - name: Install dependencies
-        script: npm ci --legacy-peer-deps --ignore-scripts
+        script: |
+          npm ci --legacy-peer-deps --ignore-scripts
+          npm install -g eas-cli expo-cli
       - name: Build IPA
         script: |
-          npx eas build --platform ios --profile sidestore --local \
+          eas build --platform ios --profile sidestore --local \
             --output ./jarvis.ipa --non-interactive
     artifacts:
       - jarvis.ipa
