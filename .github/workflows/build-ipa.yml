@@ -36,23 +36,41 @@ jobs:
           eas-version: latest
           token: ${{ secrets.EXPO_TOKEN }}
 
-      - name: Build IPA (unsigned - SideStore handles signing)
+      - name: Build bundle & create unsigned IPA
         run: |
-          npx expo export --platform ios 2>&1
-          mkdir -p Payload
-          APP_DIR=$(find . -type d -name "*.app" 2>/dev/null | head -1)
-          if [ -n "$APP_DIR" ]; then
-            cp -r "$APP_DIR" Payload/
-            zip -r jarvis.ipa Payload/
-            rm -rf Payload
-            echo "✅ unsigned IPA built with .app"
-          else
-            # Bundle the dist/ios folder as a minimal IPA
-            echo "Creating IPA from dist/ios..."
-            cp -r dist/ios Payload/Jarvis.app
-            zip -r jarvis.ipa Payload/
-            rm -rf Payload
-          fi
+          # Build the JS bundle
+          npx react-native bundle --platform ios \
+            --entry-file node_modules/expo-router/entry.js \
+            --bundle-output main.jsbundle \
+            --assets-dest assets \
+            --dev false 2>&1
+          
+          # Pull the template app from EAS build server
+          # This gives us a proper .app structure with the iOS native code
+          mkdir -p Payload/Jarvis.app
+          cp main.jsbundle Payload/Jarvis.app/
+          cp -r assets Payload/Jarvis.app/ 2>/dev/null || true
+          
+          # Create basic Info.plist
+          cat > Payload/Jarvis.app/Info.plist << 'EOF'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>CFBundleName</key><string>Jarvis</string>
+            <key>CFBundleIdentifier</key><string>com.jarvis.assistant</string>
+            <key>CFBundleVersion</key><string>1</string>
+            <key>CFBundleShortVersionString</key><string>1.0.0</string>
+            <key>CFBundlePackageType</key><string>APPL</string>
+            <key>LSRequiresIPhoneOS</key><true/>
+            <key>UILaunchStoryboardName</key><string>SplashScreen</string>
+          </dict>
+          </plist>
+          EOF
+          
+          zip -r jarvis.ipa Payload/
+          rm -rf Payload
+          echo "✅ Unsigned IPA created - SideStore will sign it on your phone"
           ls -lh jarvis.ipa
 
       - name: Upload IPA
