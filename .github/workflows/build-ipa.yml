@@ -36,10 +36,10 @@ jobs:
           eas-version: latest
           token: ${{ secrets.EXPO_TOKEN }}
 
-      - name: Build IPA (EAS cloud build)
+      - name: Build IPA (SideStore - free Apple ID)
         run: |
-          eas build --platform ios --profile development \
-            --non-interactive
+          eas build --platform ios --profile sidestore --local \
+            --output ./jarvis.ipa --non-interactive
         env:
           EXPO_APPLE_ID: ${{ secrets.APPLE_ID }}
           EXPO_APPLE_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
