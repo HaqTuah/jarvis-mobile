@@ -17,8 +17,7 @@
       }
     },
     "sidestore": {
-      "distribution": "development",
-      "developmentClient": true,
+      "distribution": "internal",
       "ios": {
         "simulator": false,
         "image": "latest"
