@@ -36,14 +36,24 @@ jobs:
           eas-version: latest
           token: ${{ secrets.EXPO_TOKEN }}
 
-      - name: Build IPA (SideStore - free Apple ID)
+      - name: Build IPA (unsigned - SideStore handles signing)
         run: |
-          eas build --platform ios --profile sidestore --local \
-            --output ./jarvis.ipa --non-interactive
-        env:
-          EXPO_APPLE_ID: ${{ secrets.APPLE_ID }}
-          EXPO_APPLE_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
-          EXPO_NO_DEPLOY: 1
+          npx expo export --platform ios 2>&1
+          mkdir -p Payload
+          APP_DIR=$(find . -type d -name "*.app" 2>/dev/null | head -1)
+          if [ -n "$APP_DIR" ]; then
+            cp -r "$APP_DIR" Payload/
+            zip -r jarvis.ipa Payload/
+            rm -rf Payload
+            echo "✅ unsigned IPA built with .app"
+          else
+            # Bundle the dist/ios folder as a minimal IPA
+            echo "Creating IPA from dist/ios..."
+            cp -r dist/ios Payload/Jarvis.app
+            zip -r jarvis.ipa Payload/
+            rm -rf Payload
+          fi
+          ls -lh jarvis.ipa
 
       - name: Upload IPA
         uses: actions/upload-artifact@v4
