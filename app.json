@@ -1,0 +1,40 @@
+{
+  "expo": {
+    "name": "Jarvis",
+    "slug": "jarvis",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "scheme": "jarvis",
+    "userInterfaceStyle": "dark",
+    "splash": {
+      "backgroundColor": "#0a0a1a"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.jarvis.assistant",
+      "infoPlist": {
+        "NSFaceIDUsageDescription": "Jarvis uses Face ID to keep your personal assistant secure and private.",
+        "NSMicrophoneUsageDescription": "Jarvis needs microphone access to hear your voice commands.",
+        "NSSpeechRecognitionUsageDescription": "Jarvis uses speech recognition to understand your voice commands.",
+        "UIBackgroundModes": ["audio"]
+      },
+      "config": {
+        "usesNonExemptEncryption": false
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#0a0a1a"
+      },
+      "package": "com.jarvis.assistant",
+      "permissions": [
+        "USE_BIOMETRIC",
+        "RECORD_AUDIO"
+      ]
+    },
+    "plugins": [
+      "expo-router"
+    ]
+  }
+}
