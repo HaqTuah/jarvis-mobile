@@ -5,6 +5,7 @@ import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as Speech from 'expo-speech';
 import { Audio } from 'expo-av';
+import { ExpoSpeechRecognition, SpeechRecognition } from 'expo-speech-recognition';
 import * as Location from 'expo-location';
 import * as Notifications from 'expo-notifications';
 
@@ -99,19 +100,23 @@ export default function ChatScreen() {
 
   const speak = async (text) => {
     const voices = await Speech.getAvailableVoicesAsync();
+    // Match PC Jarvis: deep, calm voice - prefer Samantha or any Enhanced English
     const en = voices.find(v => v.language.startsWith('en') && v.name.includes('Samantha'))
       || voices.find(v => v.language.startsWith('en') && v.quality === 'Enhanced')
       || voices.find(v => v.language.startsWith('en'));
-    await Speech.speak(text, { rate: 0.85, pitch: 0.95, voice: en?.identifier });
+    await Speech.speak(text, { rate: 0.82, pitch: 0.92, voice: en?.identifier });
   };
 
   const handleVoice = async () => {
     try {
+      const { granted } = await SpeechRecognition.requestPermissionsAsync();
+      if (!granted) { Alert.alert('Permission Denied', 'Microphone access is required for voice input.'); return; }
       setIsListening(true); setIsRecording(true);
-      if (await Speech.isSpeakingAsync()) await Speech.stop();
-      // Use Expo Speech's built-in speech recognition
-      // Fallback: just send a voice prompt to Jarvis
-      handleSend('Hey Jarvis, I want to talk');
+      const result = await ExpoSpeechRecognition.startListeningAsync({ lang: 'en-US', interimResults: false, maxResults: 1 });
+      setIsListening(false); setIsRecording(false);
+      if (result?.transcript?.trim()) {
+        handleSend(result.transcript.trim());
+      }
     } catch(_) { setIsListening(false); setIsRecording(false); }
   };
 
