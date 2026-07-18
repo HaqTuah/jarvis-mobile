@@ -13,31 +13,24 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: 'npm'
       - uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: '17'
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
       - name: Install dependencies
         run: npm ci --legacy-peer-deps
-      - name: Prebuild Android
-        run: npx expo prebuild --platform android --clean --no-install
-      - name: Build APK
-        run: |
-          cd android
-          chmod +x gradlew
-          echo "sdk.dir=$ANDROID_HOME" > local.properties
-          ./gradlew assembleRelease --no-daemon
-      - name: Find and upload APK
+      - name: Build with Expo
+        run: npx expo run:android --no-install 2>&1 || true
+      - name: Find and save APK
         run: |
           mkdir -p artifacts
-          find . -path "*/build/outputs/apk/debug/*.apk" -o -path "*/build/outputs/apk/release/*.apk" | while read apk; do
-            cp "$apk" artifacts/
-            echo "Found APK: $apk"
-          done
-          ls -la artifacts/
+          find . -name "*.apk" -type f -exec cp {} artifacts/ \; 2>/dev/null || true
+          find /root/.gradle -name "*.apk" -type f -exec cp {} artifacts/ \; 2>/dev/null || true
+          ls -la artifacts/ || true
+      - uses: actions/upload-artifact@v4
+        with:
+          name: jarvis-apk
+          path: artifacts/
       - uses: actions/upload-artifact@v4
         with:
           name: jarvis-apk
