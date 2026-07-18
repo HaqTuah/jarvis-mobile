@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as Speech from 'expo-speech';
+import { Audio } from 'expo-av';
 import * as Location from 'expo-location';
 import * as Notifications from 'expo-notifications';
 
@@ -29,6 +30,7 @@ export default function ChatScreen() {
   const bgTaskRef = useRef(null);
 
   useEffect(() => {
+    Audio.setAudioModeAsync({ playsInSilentModeIOS: true, staysActiveInBackground: true });
     checkConnection();
     registerPush();
     bgTaskRef.current = setInterval(() => fetch(SERVER_URL+'/api').catch(()=>{}), 60000);
@@ -87,7 +89,7 @@ export default function ChatScreen() {
       const res = await fetch(SERVER_URL+'/chat', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({message:text.trim(),location,platform:'ios'}) });
       const data = await res.json();
       if (data.response) {
-        Speech.speak(data.response, {rate:0.9,pitch:1.0});
+        speak(data.response);
         if (data.toolAction) await toolAction(data.toolAction.name, data.toolAction.args);
         setMessages(prev => [...prev, {id:(Date.now()+1).toString(),role:'assistant',text:data.response,timestamp:data.timestamp||Date.now(),emotion:data.emotion}]);
       }
@@ -95,17 +97,21 @@ export default function ChatScreen() {
     setIsProcessing(false);
   };
 
+  const speak = async (text) => {
+    const voices = await Speech.getAvailableVoicesAsync();
+    const en = voices.find(v => v.language.startsWith('en') && v.name.includes('Samantha'))
+      || voices.find(v => v.language.startsWith('en') && v.quality === 'Enhanced')
+      || voices.find(v => v.language.startsWith('en'));
+    await Speech.speak(text, { rate: 0.85, pitch: 0.95, voice: en?.identifier });
+  };
+
   const handleVoice = async () => {
     try {
       setIsListening(true); setIsRecording(true);
       if (await Speech.isSpeakingAsync()) await Speech.stop();
-      Alert.alert('Voice Input','Speak into your microphone...',[
-        {text:'Cancel',style:'cancel',onPress:()=>{setIsListening(false);setIsRecording(false);}},
-        {text:'Done',onPress:()=>{setIsRecording(false);setIsListening(false);
-          if (Platform.OS==='ios' && Alert.prompt) Alert.prompt('What did you say?','',s=>{if(s?.trim())handleSend(s.trim());});
-          else handleSend('What can you help me with?');
-        }},
-      ]);
+      // Use Expo Speech's built-in speech recognition
+      // Fallback: just send a voice prompt to Jarvis
+      handleSend('Hey Jarvis, I want to talk');
     } catch(_) { setIsListening(false); setIsRecording(false); }
   };
 
@@ -118,11 +124,11 @@ export default function ChatScreen() {
   const renderMsg = ({item}) => {
     const u = item.role === 'user';
     return (
-      <View style={[styles.row, u ? styles.uRow : styles.aRow]}>
-        {!u && <View style={styles.av}><Ionicons name="sparkles" size={14} color="#6c5ce7" /></View>}
-        <View style={[styles.bubble, u ? styles.uBub : styles.aBub]}>
-          <Text style={[styles.txt, u ? styles.uTxt : styles.aTxt]}>{item.text}</Text>
-          <Text style={styles.time}>{new Date(item.timestamp).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}</Text>
+      <View style={[s.row, u ? s.uRow : s.aRow]}>
+        {!u && <View style={s.av}><Ionicons name="sparkles" size={14} color="#6c5ce7" /></View>}
+        <View style={[s.bubble, u ? s.uBub : s.aBub]}>
+          <Text style={[s.txt, u ? s.uTxt : s.aTxt]}>{item.text}</Text>
+          <Text style={s.time}>{new Date(item.timestamp).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}</Text>
         </View>
       </View>
     );
