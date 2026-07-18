@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { View, Text, StyleSheet, TextInput, TouchableOpacity, FlatList, KeyboardAvoidingView, Platform, ActivityIndicator, Linking, Alert, AppState } from 'react-native';
+import { View, Text, StyleSheet, TextInput, TouchableOpacity, FlatList, KeyboardAvoidingView, Platform, ActivityIndicator, Linking, Alert, AppState, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -7,6 +7,10 @@ import * as Speech from 'expo-speech';
 import { Audio } from 'expo-av';
 import * as Location from 'expo-location';
 import * as Notifications from 'expo-notifications';
+import * as ImagePicker from 'expo-image-picker';
+import * as DocumentPicker from 'expo-document-picker';
+import * as SecureStore from 'expo-secure-store';
+import * as Crypto from 'expo-crypto';
 
 const SERVER_URL = 'https://jarvis-server-production-692e.up.railway.app';
 
@@ -28,6 +32,62 @@ export default function ChatScreen() {
   const [isRecording, setIsRecording] = useState(false);
   const flatListRef = useRef(null);
   const bgTaskRef = useRef(null);
+  const [authToken, setAuthToken] = useState(null);
+
+  // Get or create auth token (XLIX-style encrypted connection)
+  useEffect(() => {
+    (async () => {
+      try {
+        let token = await SecureStore.getItemAsync('jarvis_token');
+        if (!token) {
+          const res = await fetch(SERVER_URL + '/api/auth', { method: 'POST' });
+          const data = await res.json();
+          token = data.token;
+          await SecureStore.setItemAsync('jarvis_token', token);
+        }
+        setAuthToken(token);
+      } catch (_) { }
+    })();
+  }, []);
+
+  const authHeaders = () => ({
+    'Content-Type': 'application/json',
+    ...(authToken ? { 'Authorization': `Bearer ${authToken}` } : {})
+  });
+
+  // XLIX: File upload from phone
+  const pickAndUpload = async () => {
+    try {
+      const result = await DocumentPicker.getDocumentAsync({ copyToCacheDirectory: true });
+      if (result.canceled || !result.assets?.[0]) return;
+      const file = result.assets[0];
+      const formData = new FormData();
+      formData.append('file', { uri: file.uri, name: file.name, type: file.mimeType } as any);
+      formData.append('name', file.name);
+      const res = await fetch(SERVER_URL + '/api/upload', {
+        method: 'POST',
+        headers: authToken ? { 'Authorization': `Bearer ${authToken}` } : {},
+        body: formData,
+      });
+      const data = await res.json();
+      if (data.status === 'uploaded') {
+        setMessages(prev => [...prev, { id: Date.now().toString(), role: 'assistant', text: `📁 Sent ${file.name} to your PC`, timestamp: Date.now() }]);
+      }
+    } catch (_) { }
+  };
+
+  // XLIX: Camera capture
+  const takePhoto = async () => {
+    try {
+      const { status } = await ImagePicker.requestCameraPermissionsAsync();
+      if (status !== 'granted') { Alert.alert('Permission needed', 'Camera access required'); return; }
+      const result = await ImagePicker.launchCameraAsync({ quality: 0.7, base64: true });
+      if (result.canceled) return;
+      const photo = result.assets[0];
+      setMessages(prev => [...prev, { id: Date.now().toString(), role: 'user', text: '📸 Photo captured', timestamp: Date.now(), image: photo.uri }]);
+      handleSend('I just took a photo. Can you help me analyze what you see?');
+    } catch (_) { }
+  };
 
   useEffect(() => {
     Audio.setAudioModeAsync({ playsInSilentModeIOS: true, staysActiveInBackground: true });
@@ -157,6 +217,8 @@ export default function ChatScreen() {
       <KeyboardAvoidingView behavior={Platform.OS==='ios'?'padding':'height'} keyboardVerticalOffset={Platform.OS==='ios'?90:0}>
         <View style={s.ic}>
           <TouchableOpacity style={[s.vb,isListening&&s.vba]} onPress={handleVoice} disabled={isProcessing}><Ionicons name={isRecording?'mic':'mic-outline'} size={22} color={isRecording?'#fff':'rgba(255,255,255,0.6)'} /></TouchableOpacity>
+          <TouchableOpacity style={s.att} onPress={pickAndUpload} disabled={isProcessing}><Ionicons name="attach" size={20} color="rgba(255,255,255,0.5)" /></TouchableOpacity>
+          <TouchableOpacity style={s.att} onPress={takePhoto} disabled={isProcessing}><Ionicons name="camera-outline" size={20} color="rgba(255,255,255,0.5)" /></TouchableOpacity>
           <TextInput style={s.ti} value={inputText} onChangeText={setInputText} placeholder="Message Jarvis..." placeholderTextColor="rgba(255,255,255,0.3)" multiline maxLength={500} onSubmitEditing={()=>handleSend()} returnKeyType="send" />
           <TouchableOpacity style={[s.snd,!inputText.trim()&&s.sndd]} onPress={()=>handleSend()} disabled={!inputText.trim()||isProcessing}><Ionicons name="send" size={18} color={inputText.trim()?'#fff':'rgba(255,255,255,0.3)'} /></TouchableOpacity>
         </View>
@@ -183,7 +245,7 @@ const s = StyleSheet.create({
   pc:{flexDirection:'row',alignItems:'center',justifyContent:'center',paddingVertical:8,gap:8},pt:{fontSize:13,color:'rgba(255,255,255,0.4)'},
   ic:{flexDirection:'row',alignItems:'center',paddingHorizontal:12,paddingVertical:8,borderTopWidth:1,borderTopColor:'rgba(255,255,255,0.05)',backgroundColor:'#0a0a1a'},
   vb:{width:40,height:40,borderRadius:20,backgroundColor:'rgba(255,255,255,0.05)',justifyContent:'center',alignItems:'center'},
-  vba:{backgroundColor:'#e74c3c'},ti:{flex:1,backgroundColor:'rgba(255,255,255,0.05)',borderRadius:20,paddingHorizontal:16,paddingVertical:10,marginHorizontal:8,color:'#fff',fontSize:15,maxHeight:100},
+  vba:{backgroundColor:'#e74c3c'},att:{width:36,height:36,borderRadius:18,backgroundColor:'rgba(255,255,255,0.04)',justifyContent:'center',alignItems:'center',marginRight:2},ti:{flex:1,backgroundColor:'rgba(255,255,255,0.05)',borderRadius:20,paddingHorizontal:16,paddingVertical:10,marginHorizontal:8,color:'#fff',fontSize:15,maxHeight:100},
   snd:{width:40,height:40,borderRadius:20,backgroundColor:'#6c5ce7',justifyContent:'center',alignItems:'center'},
   sndd:{backgroundColor:'rgba(255,255,255,0.05)'},
 });
