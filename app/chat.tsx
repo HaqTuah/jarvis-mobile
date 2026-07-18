@@ -5,7 +5,6 @@ import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as Speech from 'expo-speech';
 import { Audio } from 'expo-av';
-import { ExpoSpeechRecognition, SpeechRecognition } from 'expo-speech-recognition';
 import * as Location from 'expo-location';
 import * as Notifications from 'expo-notifications';
 
@@ -109,15 +108,14 @@ export default function ChatScreen() {
 
   const handleVoice = async () => {
     try {
-      const { granted } = await SpeechRecognition.requestPermissionsAsync();
-      if (!granted) { Alert.alert('Permission Denied', 'Microphone access is required for voice input.'); return; }
       setIsListening(true); setIsRecording(true);
-      const result = await ExpoSpeechRecognition.startListeningAsync({ lang: 'en-US', interimResults: false, maxResults: 1 });
-      setIsListening(false); setIsRecording(false);
-      if (result?.transcript?.trim()) {
-        handleSend(result.transcript.trim());
-      }
-    } catch(_) { setIsListening(false); setIsRecording(false); }
+      if (await Speech.isSpeakingAsync()) await Speech.stop();
+      // Opens the keyboard for voice typing - iOS native dictation
+      Alert.alert('Voice Input', 'Tap the microphone on your keyboard and speak.', [
+        { text: 'Cancel', style: 'cancel', onPress: () => { setIsListening(false); setIsRecording(false); } },
+        { text: 'OK', onPress: () => { setIsRecording(false); setIsListening(false); } },
+      ]);
+    } catch (_) { setIsListening(false); setIsRecording(false); }
   };
 
   const launchApp = async name => {

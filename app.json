@@ -36,8 +36,7 @@
       ]
     },
     "plugins": [
-      "expo-router",
-      "expo-speech-recognition"
+      "expo-router"
     ],
     "extra": {
       "router": {},
